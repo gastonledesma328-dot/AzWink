@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AzWink OBS Overlay</title>
+<title>Weezyx OBS Overlay</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -184,13 +184,23 @@ body {
 </div>
 
 <div class="setup" id="setup" style="display:none">
-  <h2>AzWink OBS Overlay</h2>
+  <h2>Weezyx OBS Overlay</h2>
   <p>Agregá tu usuario en la URL para conectar el overlay a tu cuenta:</p>
   <div class="url" id="setup-url"></div>
   <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
 </div>
 
 <audio id="player" style="display:none"></audio>
+
+<button id="reset-btn" onclick="forceReset()" style="
+  position:fixed;top:12px;right:12px;
+  background:rgba(10,10,15,.7);border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.4);border-radius:8px;padding:5px 10px;
+  font-family:monospace;font-size:11px;cursor:pointer;
+  transition:all .2s;
+" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.4)'">
+  ↺ reset
+</button>
 
 <script>
 const SUPABASE_URL = 'https://vgnvhwiaqlcatnzvjhop.supabase.co';
@@ -255,27 +265,54 @@ function showCard(sub) {
   card.classList.add('visible');
 
   const player = document.getElementById('player');
+  player.onended = null; // reset previous handler
   player.src = sub.audio_url;
-  player.play().then(() => {
-    startVisualizer(player);
-  }).catch(e => {
-    console.error('Playback error:', e);
-    bars.forEach(b => b.classList.add('playing'));
-  });
 
-  player.onended = () => {
+  // Safety timeout — always release after 90s max
+  const safetyTimer = setTimeout(() => {
+    stopVisualizer();
+    hideCard();
+    isPlaying = false;
+  }, 90000);
+
+  const finish = () => {
+    clearTimeout(safetyTimer);
     stopVisualizer();
     hideTimer = setTimeout(() => {
       hideCard();
       setTimeout(() => { isPlaying = false; }, 500);
     }, 2000);
   };
+
+  player.onended = finish;
+  player.onerror = () => { clearTimeout(safetyTimer); isPlaying = false; hideCard(); };
+
+  player.play().then(() => {
+    startVisualizer(player);
+  }).catch(e => {
+    console.error('Playback error:', e);
+    bars.forEach(b => b.classList.add('playing'));
+    // If autoplay blocked, still release after duration or 30s
+    const fallback = setTimeout(() => { finish(); }, (sub.duration || 30) * 1000 + 2000);
+    player.onended = () => { clearTimeout(fallback); finish(); };
+  });
 }
 
 function hideCard() {
   const card = document.getElementById('card');
   card.classList.add('hiding');
   setTimeout(() => card.classList.remove('visible', 'hiding'), 400);
+}
+
+function forceReset() {
+  const player = document.getElementById('player');
+  player.pause();
+  player.src = '';
+  player.onended = null;
+  stopVisualizer();
+  hideCard();
+  isPlaying = false;
+  clearTimeout(hideTimer);
 }
 
 // ── POLLING ──
