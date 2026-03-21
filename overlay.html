@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weezyx OBS Overlay</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: transparent;
+  font-family: 'Syne', sans-serif;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 32px;
+  overflow: hidden;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap');
+
+/* ── CARD ── */
+.overlay-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(232, 255, 77, 0.3);
+  border-radius: 20px;
+  padding: 16px 24px;
+  min-width: 320px;
+  max-width: 520px;
+
+  /* Hidden by default */
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.4s cubic-bezier(.22,1,.36,1), transform 0.4s cubic-bezier(.22,1,.36,1);
+  pointer-events: none;
+}
+
+.overlay-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.overlay-card.hiding {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* ── AVATAR ── */
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e8ff4d, #4dffb4);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: #0a0a0f;
+  flex-shrink: 0;
+  justify-content: center;
+}
+
+/* ── TEXT ── */
+.text-wrap { flex: 1; min-width: 0; }
+
+.sender-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #7a7a9a;
+  margin-bottom: 2px;
+}
+
+.sender-name {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #f0f0ff;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── WAVEFORM ── */
+.waveform {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.bar {
+  width: 3px;
+  border-radius: 10px;
+  background: #e8ff4d;
+  height: 4px;
+  transition: height 0.08s ease;
+}
+
+.bar.playing {
+  animation: wave-idle 1.2s ease-in-out infinite;
+}
+
+.bar:nth-child(2) { animation-delay: 0.1s; }
+.bar:nth-child(3) { animation-delay: 0.2s; }
+.bar:nth-child(4) { animation-delay: 0.3s; }
+.bar:nth-child(5) { animation-delay: 0.15s; }
+.bar:nth-child(6) { animation-delay: 0.25s; }
+.bar:nth-child(7) { animation-delay: 0.05s; }
+.bar:nth-child(8) { animation-delay: 0.35s; }
+.bar:nth-child(9) { animation-delay: 0.18s; }
+.bar:nth-child(10) { animation-delay: 0.28s; }
+.bar:nth-child(11) { animation-delay: 0.08s; }
+.bar:nth-child(12) { animation-delay: 0.22s; }
+
+@keyframes wave-idle {
+  0%, 100% { height: 4px; }
+  50% { height: 28px; }
+}
+
+/* ── MIC ICON (idle state) ── */
+.mic-icon {
+  color: #e8ff4d;
+  flex-shrink: 0;
+}
+
+/* ── INCOMING LABEL ── */
+.incoming-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.incoming-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e8ff4d;
+  animation: blink 1s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ── SETUP PAGE (shown when no slug in URL) ── */
+.setup {
+  background: rgba(10,10,15,0.95);
+  border: 1px solid rgba(232,255,77,0.2);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 480px;
+  color: #f0f0ff;
+  font-family: 'DM Mono', monospace;
+}
+.setup h2 { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #e8ff4d; margin-bottom: 12px; }
+.setup p { font-size: 0.8rem; color: #7a7a9a; line-height: 1.6; margin-bottom: 16px; }
+.setup .url { background: rgba(232,255,77,0.08); border: 1px solid rgba(232,255,77,0.2); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #e8ff4d; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="overlay-card" id="card">
+  <div class="avatar" id="avatar">?</div>
+  <div class="text-wrap">
+    <div class="incoming-wrap">
+      <div class="incoming-dot"></div>
+      <div class="sender-label">audio de</div>
+    </div>
+    <div class="sender-name" id="sender-name">Anónimo</div>
+  </div>
+  <div class="waveform" id="waveform"></div>
+</div>
+
+<div class="setup" id="setup" style="display:none">
+  <h2>Weezyx OBS Overlay</h2>
+  <p>Agregá tu usuario en la URL para conectar el overlay a tu cuenta:</p>
+  <div class="url" id="setup-url"></div>
+  <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
+</div>
+
+<audio id="player" style="display:none"></audio>
+
+<script>
+const SUPABASE_URL = 'https://vgnvhwiaqlcatnzvjhop.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_5Y4D-pQL1z_cPmgAo1yiJA_zTHPbIc8';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── WAVEFORM BARS ──
+const wf = document.getElementById('waveform');
+const bars = [];
+for (let i = 0; i < 12; i++) {
+  const b = document.createElement('div');
+  b.className = 'bar';
+  wf.appendChild(b);
+  bars.push(b);
+}
+
+// ── AUDIO ANALYSER ──
+let audioCtx, analyser, source, animFrame;
+
+function startVisualizer(audioEl) {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (source) { try { source.disconnect(); } catch(e){} }
+  source = audioCtx.createMediaElementSource(audioEl);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 32;
+  source.connect(analyser);
+  analyser.connect(audioCtx.destination);
+
+  bars.forEach(b => { b.classList.remove('playing'); });
+
+  const buf = new Uint8Array(analyser.frequencyBinCount);
+  function draw() {
+    animFrame = requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(buf);
+    bars.forEach((b, i) => {
+      const v = (buf[i] || 0) / 255;
+      b.style.height = (4 + v * 34) + 'px';
+      b.style.opacity = 0.5 + v * 0.5;
+    });
+  }
+  draw();
+}
+
+function stopVisualizer() {
+  cancelAnimationFrame(animFrame);
+  bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '1'; });
+}
+
+// ── SHOW / HIDE CARD ──
+let hideTimer;
+
+function showCard(sub) {
+  clearTimeout(hideTimer);
+
+  // Fill in sender info
+  const name = sub.sender_name || 'Anónimo';
+  document.getElementById('sender-name').textContent = name;
+  document.getElementById('avatar').textContent = name[0].toUpperCase();
+
+  const card = document.getElementById('card');
+  card.classList.remove('hiding');
+  card.classList.add('visible');
+
+  // Play audio
+  const player = document.getElementById('player');
+  player.src = sub.audio_url;
+  player.play().then(() => {
+    startVisualizer(player);
+  }).catch(e => {
+    console.error('Playback error:', e);
+    // Fallback: animate bars without real audio
+    bars.forEach(b => b.classList.add('playing'));
+  });
+
+  player.onended = () => {
+    stopVisualizer();
+    hideTimer = setTimeout(hideCard, 2000);
+  };
+}
+
+function hideCard() {
+  const card = document.getElementById('card');
+  card.classList.add('hiding');
+  setTimeout(() => card.classList.remove('visible', 'hiding'), 400);
+}
+
+// ── REALTIME SUBSCRIPTION ──
+async function connectRealtime(recipientId) {
+  // Play most recent unplayed on load (optional — comment out if not wanted)
+  const { data: latest } = await sb
+    .from('submissions')
+    .select('*')
+    .eq('recipient_id', recipientId)
+    .eq('listened', false)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  // Subscribe to new inserts
+  sb.channel('overlay-' + recipientId)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'submissions',
+      filter: `recipient_id=eq.${recipientId}`
+    }, payload => {
+      showCard(payload.new);
+      // Mark as listened
+      sb.from('submissions').update({ listened: true }).eq('id', payload.new.id);
+    })
+    .subscribe();
+}
+
+// ── INIT ──
+async function init() {
+  const slug = new URLSearchParams(window.location.search).get('u')
+    || window.location.pathname.match(/\/overlay\/([^/]+)/)?.[1];
+
+  if (!slug) {
+    document.getElementById('card').style.display = 'none';
+    document.getElementById('setup').style.display = 'block';
+    document.getElementById('setup-url').textContent =
+      window.location.origin + '/overlay.html?u=TUUSUARIO';
+    return;
+  }
+
+  // Look up profile by slug
+  const { data: profile } = await sb.from('profiles').select('id,slug').eq('slug', slug).single();
+  if (!profile) {
+    document.getElementById('card').style.display = 'none';
+    document.getElementById('setup').style.display = 'block';
+    document.getElementById('setup-url').textContent = 'Usuario "' + slug + '" no encontrado.';
+    return;
+  }
+
+  await connectRealtime(profile.id);
+}
+
+init();
+</script>
+</body>
+</html>
