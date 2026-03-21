@@ -367,9 +367,25 @@ function renderInbox(list) {
         <div class="sub-name">${sub.sender_name||'Anónimo'}${dot}</div>
         <div class="sub-time">${date} · ${dur}</div>
       </div>
-      <div class="sub-audio"><audio src="${sub.audio_url}" controls onplay="markListened('${sub.id}')"></audio></div>`;
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <audio src="${sub.audio_url}" controls onplay="markListened('${sub.id}')" style="width:180px;height:30px"></audio>
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:.68rem;border-color:rgba(232,255,77,.3);color:#e8ff4d" onclick="sendToOverlay('${sub.id}','${sub.audio_url}','${(sub.sender_name||'Anónimo').replace(/'/g,"\\'")}')">
+          ▶ Enviar al overlay
+        </button>
+      </div>`;
     el.appendChild(item);
   });
+}
+
+async function sendToOverlay(submissionId, audioUrl, senderName) {
+  const { error } = await sb.from('overlay_queue').insert({
+    recipient_id: currentUser.id,
+    submission_id: submissionId,
+    audio_url: audioUrl,
+    sender_name: senderName,
+  });
+  if (error) { showToast('Error al enviar al overlay', 'error'); return; }
+  showToast('▶ Enviado al overlay', 'success');
 }
 
 async function markListened(id) {
