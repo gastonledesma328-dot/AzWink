@@ -190,8 +190,6 @@ body {
   <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
 </div>
 
-<audio id="player" style="display:none" volume="1" preload="auto"></audio>
-
 <button id="reset-btn" onclick="forceReset()" style="
   position:fixed;top:12px;right:12px;
   background:rgba(10,10,15,.7);border:1px solid rgba(255,255,255,.15);
@@ -218,35 +216,53 @@ for (let i = 0; i < 12; i++) {
   bars.push(b);
 }
 
-// ── AUDIO ANALYSER ──
-let audioCtx, analyser, source, animFrame;
+// ── AUDIO via Web Audio API (OBS compatible) ──
+let audioCtx, analyser, animFrame, currentSource;
 
-function startVisualizer(audioEl) {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (source) { try { source.disconnect(); } catch(e){} }
-  source = audioCtx.createMediaElementSource(audioEl);
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 32;
-  source.connect(analyser);
-  analyser.connect(audioCtx.destination);
+async function playAudio(url, onEnd) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
 
-  bars.forEach(b => { b.classList.remove('playing'); });
+    const res = await fetch(url);
+    const arrayBuffer = await res.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-  const buf = new Uint8Array(analyser.frequencyBinCount);
-  function draw() {
-    animFrame = requestAnimationFrame(draw);
-    analyser.getByteFrequencyData(buf);
-    bars.forEach((b, i) => {
-      const v = (buf[i] || 0) / 255;
-      b.style.height = (4 + v * 34) + 'px';
-      b.style.opacity = 0.5 + v * 0.5;
-    });
+    if (currentSource) { try { currentSource.stop(); } catch(e){} }
+
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 32;
+
+    currentSource = audioCtx.createBufferSource();
+    currentSource.buffer = audioBuffer;
+    currentSource.connect(analyser);
+    analyser.connect(audioCtx.destination);
+    currentSource.onended = onEnd;
+    currentSource.start(0);
+
+    // Animate bars
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    cancelAnimationFrame(animFrame);
+    (function draw() {
+      animFrame = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(buf);
+      bars.forEach((b, i) => {
+        const v = (buf[i] || 0) / 255;
+        b.style.height = (4 + v * 34) + 'px';
+        b.style.opacity = String(0.5 + v * 0.5);
+      });
+    })();
+
+    return true;
+  } catch(e) {
+    console.error('Audio error:', e);
+    return false;
   }
-  draw();
 }
 
-function stopVisualizer() {
+function stopAudio() {
   cancelAnimationFrame(animFrame);
+  if (currentSource) { try { currentSource.stop(); } catch(e){} currentSource = null; }
   bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '1'; });
 }
 
@@ -264,39 +280,26 @@ function showCard(sub) {
   card.classList.remove('hiding');
   card.classList.add('visible');
 
-  const player = document.getElementById('player');
-  player.onended = null;
-  player.src = sub.audio_url;
-  player.volume = 1;
-  player.muted = false;
-
-  // Safety timeout — always release after 90s max
+  // Safety timeout
   const safetyTimer = setTimeout(() => {
-    stopVisualizer();
-    hideCard();
-    isPlaying = false;
+    stopAudio(); hideCard(); isPlaying = false;
   }, 90000);
 
   const finish = () => {
     clearTimeout(safetyTimer);
-    stopVisualizer();
+    stopAudio();
     hideTimer = setTimeout(() => {
       hideCard();
       setTimeout(() => { isPlaying = false; }, 500);
     }, 2000);
   };
 
-  player.onended = finish;
-  player.onerror = () => { clearTimeout(safetyTimer); isPlaying = false; hideCard(); };
-
-  player.play().then(() => {
-    startVisualizer(player);
-  }).catch(e => {
-    console.error('Playback error:', e);
-    bars.forEach(b => b.classList.add('playing'));
-    // If autoplay blocked, still release after duration or 30s
-    const fallback = setTimeout(() => { finish(); }, (sub.duration || 30) * 1000 + 2000);
-    player.onended = () => { clearTimeout(fallback); finish(); };
+  playAudio(sub.audio_url, finish).then(ok => {
+    if (!ok) {
+      // Fallback: animate bars for the duration
+      bars.forEach(b => b.classList.add('playing'));
+      setTimeout(finish, (sub.duration || 15) * 1000);
+    }
   });
 }
 
@@ -307,11 +310,7 @@ function hideCard() {
 }
 
 function forceReset() {
-  const player = document.getElementById('player');
-  player.pause();
-  player.src = '';
-  player.onended = null;
-  stopVisualizer();
+  stopAudio();
   hideCard();
   isPlaying = false;
   clearTimeout(hideTimer);
