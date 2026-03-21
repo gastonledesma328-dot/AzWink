@@ -246,7 +246,6 @@ let hideTimer;
 function showCard(sub) {
   clearTimeout(hideTimer);
 
-  // Fill in sender info
   const name = sub.sender_name || 'Anónimo';
   document.getElementById('sender-name').textContent = name;
   document.getElementById('avatar').textContent = name[0].toUpperCase();
@@ -255,20 +254,21 @@ function showCard(sub) {
   card.classList.remove('hiding');
   card.classList.add('visible');
 
-  // Play audio
   const player = document.getElementById('player');
   player.src = sub.audio_url;
   player.play().then(() => {
     startVisualizer(player);
   }).catch(e => {
     console.error('Playback error:', e);
-    // Fallback: animate bars without real audio
     bars.forEach(b => b.classList.add('playing'));
   });
 
   player.onended = () => {
     stopVisualizer();
-    hideTimer = setTimeout(hideCard, 2000);
+    hideTimer = setTimeout(() => {
+      hideCard();
+      setTimeout(() => { isPlaying = false; }, 500);
+    }, 2000);
   };
 }
 
@@ -278,23 +278,31 @@ function hideCard() {
   setTimeout(() => card.classList.remove('visible', 'hiding'), 400);
 }
 
-// ── REALTIME SUBSCRIPTION ──
+// ── POLLING ──
+let lastChecked = new Date().toISOString();
+let isPlaying = false;
+
 async function connectRealtime(recipientId) {
-  // Subscribe to overlay_queue inserts
-  sb.channel('overlay-' + recipientId)
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'overlay_queue',
-      filter: `recipient_id=eq.${recipientId}`
-    }, async payload => {
-      showCard(payload.new);
-      // Delete from queue after playing
-      setTimeout(() => {
-        sb.from('overlay_queue').delete().eq('id', payload.new.id);
-      }, 60000);
-    })
-    .subscribe();
+  setInterval(async () => {
+    if (isPlaying) return;
+
+    const { data } = await sb
+      .from('overlay_queue')
+      .select('*')
+      .eq('recipient_id', recipientId)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const item = data[0];
+      isPlaying = true;
+
+      // Delete from queue immediately so it doesn't replay
+      await sb.from('overlay_queue').delete().eq('id', item.id);
+
+      showCard(item);
+    }
+  }, 2000);
 }
 
 // ── INIT ──
