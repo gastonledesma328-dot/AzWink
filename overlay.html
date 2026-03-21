@@ -190,7 +190,7 @@ body {
   <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
 </div>
 
-<audio id="player" style="display:none"></audio>
+<audio id="player" style="display:none" volume="1" preload="auto"></audio>
 
 <button id="reset-btn" onclick="forceReset()" style="
   position:fixed;top:12px;right:12px;
@@ -265,8 +265,10 @@ function showCard(sub) {
   card.classList.add('visible');
 
   const player = document.getElementById('player');
-  player.onended = null; // reset previous handler
+  player.onended = null;
   player.src = sub.audio_url;
+  player.volume = 1;
+  player.muted = false;
 
   // Safety timeout — always release after 90s max
   const safetyTimer = setTimeout(() => {
@@ -316,8 +318,8 @@ function forceReset() {
 }
 
 // ── POLLING ──
-let lastChecked = new Date().toISOString();
 let isPlaying = false;
+const processed = new Set();
 
 async function connectRealtime(recipientId) {
   setInterval(async () => {
@@ -330,15 +332,19 @@ async function connectRealtime(recipientId) {
       .order('created_at', { ascending: true })
       .limit(1);
 
-    if (data && data.length > 0) {
-      const item = data[0];
-      isPlaying = true;
+    if (!data || !data.length) return;
+    const item = data[0];
 
-      // Delete from queue immediately so it doesn't replay
-      await sb.from('overlay_queue').delete().eq('id', item.id);
+    // Skip if already processed
+    if (processed.has(item.id)) return;
+    processed.add(item.id);
 
-      showCard(item);
-    }
+    // Delete FIRST before playing
+    const { error } = await sb.from('overlay_queue').delete().eq('id', item.id);
+    if (error) { processed.delete(item.id); return; }
+
+    isPlaying = true;
+    showCard(item);
   }, 2000);
 }
 
