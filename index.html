@@ -160,11 +160,19 @@ audio{width:100%;accent-color:var(--accent);border-radius:8px;margin-bottom:14px
       <h1 class="ph-title">Tu link <span>personal.</span></h1>
     </div>
     <div class="card">
+      <div class="card-label">Overlay para OBS</div>
+      <p style="font-size:.78rem;color:var(--dim);margin-bottom:12px;line-height:1.6">Agregá esta URL como fuente <strong style="color:var(--text)">Navegador</strong> en OBS. El audio se reproduce automáticamente cuando apretás "Enviar al overlay".</p>
+      <div class="link-box">
+        <span id="obs-link-text">—</span>
+        <button class="copy-btn" id="copy-obs-btn" onclick="copyObs()">Copiar</button>
+      </div>
+      <p style="font-size:.7rem;color:var(--dim);margin-top:10px">En OBS: <strong style="color:var(--text)">Fuentes → + → Navegador</strong> → pegá la URL → Ancho: 800 / Alto: 200</p>
+    </div>
+
+    <div class="card">
       <div class="card-label">Compartí este link para recibir audios</div>
       <div class="link-box">
         <span id="my-link-text">—</span>
-        <button class="copy-btn" id="copy-link-btn" onclick="copyLink()">Copiar</button>
-      </div>
       <p style="font-size:.72rem;color:var(--dim);margin-top:10px">Cualquiera que entre a este link puede grabarte un audio. Vos lo recibís acá abajo.</p>
     </div>
     <div class="stat-row">
@@ -339,6 +347,7 @@ function showApp() {
     ? `<img class="avatar" src="${currentProfile.avatar_url}" alt="">`
     : `<div class="avatar-placeholder">${(currentProfile.display_name||'?')[0].toUpperCase()}</div>`;
   document.getElementById('my-link-text').textContent = `${BASE_URL}/u/${currentProfile.slug}`;
+  document.getElementById('obs-link-text').textContent = `${BASE_URL}/overlay.html?u=${currentProfile.slug}`;
   loadInbox();
 }
 
@@ -392,6 +401,14 @@ async function markListened(id) {
   await sb.from('submissions').update({listened:true}).eq('id',id);
   const {data} = await sb.from('submissions').select('id').eq('recipient_id',currentUser.id).eq('listened',false);
   document.getElementById('stat-new').textContent=(data||[]).length;
+}
+
+function copyObs() {
+  navigator.clipboard.writeText(document.getElementById('obs-link-text').textContent).then(() => {
+    const btn = document.getElementById('copy-obs-btn');
+    btn.textContent = '✓ Copiado'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  });
 }
 
 function copyLink() {
