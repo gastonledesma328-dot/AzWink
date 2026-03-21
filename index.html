@@ -236,7 +236,13 @@ const SUPABASE_KEY = 'sb_publishable_5Y4D-pQL1z_cPmgAo1yiJA_zTHPbIc8';
 const BUCKET = 'grabaciones';
 const BASE_URL = window.location.origin;
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let sb;
+try {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch(e) {
+  console.error('Supabase init error:', e);
+  document.body.innerHTML = '<div style="color:#fff;padding:40px;font-family:monospace">Error al cargar Supabase: ' + e.message + '</div>';
+}
 
 let currentUser = null, currentProfile = null;
 let recording = false, mediaRecorder = null, audioChunks = [], audioBlob = null;
@@ -469,7 +475,7 @@ function showToast(msg,type=''){
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
 }
 
-init();
+init().catch(e => { console.error('Init error:', e); showPage('login-page'); });
 </script>
 </body>
 </html>
