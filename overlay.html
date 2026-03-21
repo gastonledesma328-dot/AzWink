@@ -280,26 +280,19 @@ function hideCard() {
 
 // ── REALTIME SUBSCRIPTION ──
 async function connectRealtime(recipientId) {
-  // Play most recent unplayed on load (optional — comment out if not wanted)
-  const { data: latest } = await sb
-    .from('submissions')
-    .select('*')
-    .eq('recipient_id', recipientId)
-    .eq('listened', false)
-    .order('created_at', { ascending: false })
-    .limit(1);
-
-  // Subscribe to new inserts
+  // Subscribe to overlay_queue inserts
   sb.channel('overlay-' + recipientId)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
-      table: 'submissions',
+      table: 'overlay_queue',
       filter: `recipient_id=eq.${recipientId}`
-    }, payload => {
+    }, async payload => {
       showCard(payload.new);
-      // Mark as listened
-      sb.from('submissions').update({ listened: true }).eq('id', payload.new.id);
+      // Delete from queue after playing
+      setTimeout(() => {
+        sb.from('overlay_queue').delete().eq('id', payload.new.id);
+      }, 60000);
     })
     .subscribe();
 }
