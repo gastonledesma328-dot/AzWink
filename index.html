@@ -262,28 +262,27 @@ async function init() {
   const path = window.location.pathname;
   const match = path.match(/^\/u\/([^/]+)/);
   if (match) {
-    // Public record page — no auth needed
     await showRecordPage(match[1]);
     return;
   }
 
-  // Auth pages — let onAuthStateChange handle it
+  // Check session directly
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    showPage('login-page');
+  }
+
+  // Keep listening for changes (login/logout)
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      if (!currentUser) {
-        currentUser = session.user;
-        await loadProfile();
-      }
+    if (event === 'SIGNED_IN' && session && !currentUser) {
+      currentUser = session.user;
+      await loadProfile();
     } else if (event === 'SIGNED_OUT') {
       currentUser = null; currentProfile = null;
       showPage('login-page');
-    } else if (event === 'INITIAL_SESSION') {
-      if (session) {
-        currentUser = session.user;
-        await loadProfile();
-      } else {
-        showPage('login-page');
-      }
     }
   });
 }
