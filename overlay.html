@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weezyx OBS Overlay</title>
+<title>AzWink OBS Overlay</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -183,28 +183,8 @@ body {
   <div class="waveform" id="waveform"></div>
 </div>
 
-<!-- Unlock button — click once to enable audio in OBS -->
-<div id="unlock-wrap" style="
-  position:fixed;inset:0;
-  display:flex;align-items:center;justify-content:center;
-  background:rgba(10,10,15,0.92);
-  z-index:999;
-">
-  <div style="text-align:center">
-    <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:#e8ff4d;margin-bottom:8px">weezyx</div>
-    <div style="font-family:'DM Mono',monospace;font-size:.8rem;color:#7a7a9a;margin-bottom:24px">overlay OBS · @<span id="unlock-slug"></span></div>
-    <button onclick="unlockAudio()" style="
-      background:#e8ff4d;color:#0a0a0f;border:none;border-radius:12px;
-      padding:14px 32px;font-family:'DM Mono',monospace;font-size:.85rem;
-      font-weight:500;letter-spacing:.06em;text-transform:uppercase;
-      cursor:pointer;transition:all .2s;
-    ">▶ Activar audio</button>
-    <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:#4a4a6a;margin-top:12px">Presioná una vez para habilitar el sonido</div>
-  </div>
-</div>
-
 <div class="setup" id="setup" style="display:none">
-  <h2>Weezyx OBS Overlay</h2>
+  <h2>AzWink OBS Overlay</h2>
   <p>Agregá tu usuario en la URL para conectar el overlay a tu cuenta:</p>
   <div class="url" id="setup-url"></div>
   <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
@@ -238,21 +218,14 @@ for (let i = 0; i < 12; i++) {
 
 let audioCtx = null;
 
-async function unlockAudio() {
-  // Create and resume AudioContext on user gesture
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await audioCtx.resume();
-
-  // Play a silent buffer to fully unlock
-  const buf = audioCtx.createBuffer(1, 1, 22050);
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  src.connect(audioCtx.destination);
-  src.start(0);
-
-  // Hide unlock screen
-  document.getElementById('unlock-wrap').style.display = 'none';
+// Try to init AudioContext automatically
+function initAudio() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch(e) {}
 }
+initAudio();
 
 // ── AUDIO ──
 let audioEl = null;
@@ -423,9 +396,6 @@ async function init() {
   }
 
   await connectRealtime(profile.id);
-  // Show slug in unlock screen
-  const slugEl = document.getElementById('unlock-slug');
-  if (slugEl) slugEl.textContent = slug;
 }
 
 init();
