@@ -368,8 +368,13 @@ function forceReset() {
 // ── POLLING ──
 let isPlaying = false;
 const processed = new Set();
+let startTime = null;
 
 async function connectRealtime(recipientId) {
+  // Clear any leftover items in queue from before this session
+  await sb.from('overlay_queue').delete().eq('recipient_id', recipientId);
+  startTime = new Date().toISOString();
+
   setInterval(async () => {
     if (isPlaying) return;
 
@@ -377,17 +382,16 @@ async function connectRealtime(recipientId) {
       .from('overlay_queue')
       .select('*')
       .eq('recipient_id', recipientId)
+      .gte('created_at', startTime)
       .order('created_at', { ascending: true })
       .limit(1);
 
     if (!data || !data.length) return;
     const item = data[0];
 
-    // Skip if already processed
     if (processed.has(item.id)) return;
     processed.add(item.id);
 
-    // Delete FIRST before playing
     const { error } = await sb.from('overlay_queue').delete().eq('id', item.id);
     if (error) { processed.delete(item.id); return; }
 
