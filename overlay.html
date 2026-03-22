@@ -254,7 +254,7 @@ initAudio();
 let audioEl = null;
 let animFrame;
 
-function playAudio(url, onEnd) {
+function playAudio(url, onEnd, sub) {
   if (audioEl) { audioEl.pause(); audioEl.src = ''; }
 
   audioEl = new Audio();
@@ -296,7 +296,9 @@ function playAudio(url, onEnd) {
   audioEl.play().catch(e => {
     console.error('Play error:', e);
     animateBarsManual();
-    setTimeout(onEnd, 15000);
+    // Use duration from sub if available, else 15s
+    const dur = (sub && sub.duration ? sub.duration : 15) * 1000;
+    setTimeout(() => { stopBars(); onEnd(); }, dur);
   });
 }
 
@@ -337,20 +339,26 @@ function showCard(sub) {
   card.classList.remove('hiding');
   card.classList.add('visible');
 
-  const safetyTimer = setTimeout(() => {
-    stopAudio(); hideCard(); isPlaying = false;
-  }, 90000);
+  // Safety timer — always release after 90s no matter what
+  const safetyTimer = setTimeout(finish, 90000);
 
-  const finish = () => {
+  function finish() {
+    clearTimeout(safetyTimer);
+    clearTimeout(hideTimer);
+    stopAudio();
+    hideCard();
+    // Always reset isPlaying after card hides
+    setTimeout(() => { isPlaying = false; }, 600);
+  }
+
+  playAudio(sub.audio_url, () => {
     clearTimeout(safetyTimer);
     stopAudio();
     hideTimer = setTimeout(() => {
       hideCard();
-      setTimeout(() => { isPlaying = false; }, 500);
+      setTimeout(() => { isPlaying = false; }, 600);
     }, 2000);
-  };
-
-  playAudio(sub.audio_url, finish);
+  }, sub);
 }
 
 function hideCard() {
