@@ -242,7 +242,7 @@ audio{width:100%;accent-color:var(--accent);border-radius:8px;margin-bottom:14px
 const SUPABASE_URL = 'https://vgnvhwiaqlcatnzvjhop.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5Y4D-pQL1z_cPmgAo1yiJA_zTHPbIc8';
 const BUCKET = 'grabaciones';
-const BASE_URL = window.location.origin;
+const BASE_URL = 'https://gastonledesma328-dot.github.io/AzWink';
 
 let sb;
 try {
@@ -267,14 +267,15 @@ let bars = [], publicRecipientId = null;
 
 // ── ROUTER ──
 async function init() {
-  const path = window.location.pathname;
-  const match = path.match(/^\/u\/([^/]+)/);
-  if (match) {
-    await showRecordPage(match[1]);
+  // GitHub Pages usa ?u=slug en vez de /u/slug
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('u');
+
+  if (slug) {
+    await showRecordPage(slug);
     return;
   }
 
-  // Check session directly
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
     currentUser = session.user;
@@ -283,7 +284,6 @@ async function init() {
     showPage('login-page');
   }
 
-  // Keep listening for changes (login/logout)
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session && !currentUser) {
       currentUser = session.user;
@@ -297,7 +297,7 @@ async function init() {
 
 // ── AUTH ──
 async function loginGoogle() {
-  await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: BASE_URL } });
+  await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: BASE_URL + '/index.html' } });
 }
 async function logout() {
   await sb.auth.signOut();
@@ -346,7 +346,7 @@ function showApp() {
   nav.innerHTML = currentProfile.avatar_url
     ? `<img class="avatar" src="${currentProfile.avatar_url}" alt="">`
     : `<div class="avatar-placeholder">${(currentProfile.display_name||'?')[0].toUpperCase()}</div>`;
-  document.getElementById('my-link-text').textContent = `${BASE_URL}/u/${currentProfile.slug}`;
+  document.getElementById('my-link-text').textContent = `${BASE_URL}/index.html?u=${currentProfile.slug}`;
   document.getElementById('obs-link-text').textContent = `${BASE_URL}/overlay.html?u=${currentProfile.slug}`;
   loadInbox();
 }
