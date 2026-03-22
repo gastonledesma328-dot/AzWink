@@ -3,223 +3,532 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AzWink OBS Overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>AzWink</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body {
-  background: transparent;
-  width: 100vw; height: 100vh;
-  display: flex; align-items: flex-end; justify-content: flex-start;
-  padding: 32px; overflow: hidden;
-  font-family: 'DM Mono', monospace;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c28;
+  --border:#2a2a3d;--accent:#e8ff4d;--accent2:#4dffb4;
+  --text:#f0f0ff;--dim:#7a7a9a;--red:#ff4d4d;
+  --r:16px;--head:'Syne',sans-serif;--mono:'DM Mono',monospace;
 }
+body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0}
 
-.card {
-  display: flex; align-items: center; gap: 18px;
-  background: rgba(10,10,15,0.88);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(232,255,77,0.35);
-  border-radius: 20px; padding: 16px 24px;
-  min-width: 300px; max-width: 520px;
-  opacity: 0; transform: translateY(20px);
-  transition: opacity 0.4s cubic-bezier(.22,1,.36,1), transform 0.4s cubic-bezier(.22,1,.36,1);
-  pointer-events: none;
-}
-.card.visible  { opacity:1; transform:translateY(0); }
-.card.hiding   { opacity:0; transform:translateY(20px); }
+nav{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 28px;background:rgba(10,10,15,.88);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:100}
+.logo{font-family:var(--head);font-weight:800;font-size:1.4rem;letter-spacing:-.04em;color:var(--accent)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--border)}
+.avatar-placeholder{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:800;font-size:.9rem;color:#0a0a0f}
 
-.avatar {
-  width:48px; height:48px; border-radius:50%;
-  background: linear-gradient(135deg,#e8ff4d,#4dffb4);
-  display:flex; align-items:center; justify-content:center;
-  font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem;
-  color:#0a0a0f; flex-shrink:0;
-}
+main{position:relative;z-index:1;width:100%;max-width:680px;padding:110px 20px 60px}
+.view{display:none}.view.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:26px;margin-bottom:14px}
+.card-label{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:14px}
+.ph{margin-bottom:36px}
+.ph-label{font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.ph-title{font-family:var(--head);font-size:clamp(1.8rem,6vw,3rem);font-weight:800;letter-spacing:-.04em;line-height:1}
+.ph-title span{color:var(--accent)}
 
-.info { flex:1; min-width:0; }
-.lbl { font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:#7a7a9a; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
-.dot { width:6px; height:6px; border-radius:50%; background:#e8ff4d; animation:blink 1s infinite; }
-.name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; color:#f0f0ff; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border:none;border-radius:10px;font-family:var(--mono);font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;cursor:pointer;transition:all .2s;font-weight:500}
+.btn-primary{background:var(--accent);color:#0a0a0f;width:100%}
+.btn-primary:hover:not(:disabled){opacity:.88;transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text);border-color:var(--dim)}
+.btn-google{background:var(--surface2);color:var(--text);border:1px solid var(--border);width:100%;gap:12px;padding:14px 24px;font-size:.85rem}
+.btn-google:hover{border-color:var(--dim)}
 
-.waveform { display:flex; align-items:center; gap:3px; height:40px; flex-shrink:0; }
-.bar { width:3px; border-radius:10px; background:#e8ff4d; height:4px; }
+input[type=text]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--mono);font-size:.88rem;padding:11px 15px;outline:none;transition:border-color .2s}
+input[type=text]:focus{border-color:var(--accent)}
+.input-label{display:block;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
+.input-group{margin-bottom:13px}
 
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.link-box{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-top:8px}
+.link-box span{flex:1;font-size:.82rem;color:var(--accent2);word-break:break-all}
+.copy-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--dim);font-family:var(--mono);font-size:.7rem;padding:5px 10px;cursor:pointer;white-space:nowrap;transition:all .2s}
+.copy-btn:hover{color:var(--text);border-color:var(--dim)}
+.copy-btn.copied{border-color:var(--accent2);color:var(--accent2)}
 
-/* unlock btn */
-#unlock-btn {
-  position:fixed; bottom:6px; right:6px;
-  width:16px; height:16px; border-radius:50%;
-  background:rgba(232,255,77,.2); border:1px solid rgba(232,255,77,.4);
-  cursor:pointer; padding:0; z-index:99;
+.status-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 16px;border-radius:100px;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border:1px solid transparent;transition:all .3s}
+.status-badge.idle{background:var(--surface2);border-color:var(--border);color:var(--dim)}
+.status-badge.recording{background:rgba(255,77,77,.15);border-color:var(--red);color:var(--red)}
+.status-badge.done{background:rgba(77,255,180,.12);border-color:var(--accent2);color:var(--accent2)}
+.status-badge.sending{background:rgba(232,255,77,.1);border-color:var(--accent);color:var(--accent)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.status-badge.recording .status-dot,.status-badge.sending .status-dot{animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.mic-area{display:flex;flex-direction:column;align-items:center;gap:24px;padding:16px 0}
+.mic-btn-wrap{position:relative;display:flex;align-items:center;justify-content:center}
+.mic-ring{position:absolute;width:120px;height:120px;border-radius:50%;border:2px solid rgba(232,255,77,.2);transition:all .3s}
+.mic-ring.recording{animation:ring-pulse 1.5s ease-out infinite;border-color:rgba(255,77,77,.5)}
+@keyframes ring-pulse{0%{transform:scale(1);opacity:1}100%{transform:scale(1.8);opacity:0}}
+.mic-btn{width:88px;height:88px;border-radius:50%;border:none;background:var(--accent);color:#0a0a0f;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;z-index:1}
+.mic-btn:hover:not(:disabled){transform:scale(1.06);box-shadow:0 0 40px rgba(232,255,77,.3)}
+.mic-btn.recording{background:var(--red);box-shadow:0 0 40px rgba(255,77,77,.4);animation:bp 1.5s ease-in-out infinite}
+.mic-btn:disabled{opacity:.4;cursor:not-allowed}
+.mic-btn svg{width:32px;height:32px}
+@keyframes bp{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+.waveform-wrap{width:100%;height:56px;display:flex;align-items:center;justify-content:center;gap:3px;opacity:0;transition:opacity .4s}
+.waveform-wrap.visible{opacity:1}
+.wave-bar{width:3px;background:var(--accent);border-radius:10px;height:5px;transition:height .08s ease}
+.waveform-wrap.recording .wave-bar{background:var(--red)}
+.rec-timer{font-family:var(--head);font-size:1.8rem;font-weight:700;color:var(--red);opacity:0;transition:opacity .3s;font-variant-numeric:tabular-nums}
+.rec-timer.visible{opacity:1}
+audio{width:100%;accent-color:var(--accent);border-radius:8px;margin-bottom:14px}
+
+.sub-list{display:flex;flex-direction:column;gap:10px}
+.sub-item{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.sub-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:var(--head);font-weight:800;font-size:.9rem;color:#0a0a0f;flex-shrink:0}
+.sub-info{flex:1;min-width:80px}
+.sub-name{font-weight:500;font-size:.85rem;margin-bottom:2px}
+.sub-time{font-size:.7rem;color:var(--dim)}
+.sub-audio audio{width:180px;height:30px}
+.empty-state{text-align:center;padding:36px;color:var(--dim);font-size:.8rem;border:1px dashed var(--border);border-radius:var(--r)}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.stat-box{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+.stat-num{font-family:var(--head);font-size:2rem;font-weight:800;color:var(--accent);letter-spacing:-.04em}
+.stat-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-top:3px}
+
+.login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:40px 20px;width:100%}
+.login-logo{font-family:var(--head);font-size:3rem;font-weight:800;letter-spacing:-.05em;color:var(--accent)}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:32px;width:100%;max-width:400px}
+.login-title{font-family:var(--head);font-size:1.4rem;font-weight:700;margin-bottom:6px}
+.login-sub{font-size:.82rem;color:var(--dim);margin-bottom:24px;line-height:1.5}
+.slug-preview{font-size:.72rem;color:var(--dim);margin-top:6px}
+.slug-preview span{color:var(--accent2)}
+
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px 22px;font-size:.8rem;color:var(--text);transition:transform .35s cubic-bezier(.22,1,.36,1);z-index:999;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{border-color:var(--accent2);color:var(--accent2)}
+.toast.error{border-color:var(--red);color:var(--red)}
+
+@media(max-width:500px){
+  nav{padding:12px 16px}
+  main{padding:95px 14px 50px}
+  .sub-audio audio{width:100%}
+  .stat-row{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 
-<div class="card" id="card">
-  <div class="avatar" id="avatar">?</div>
-  <div class="info">
-    <div class="lbl"><div class="dot"></div>audio de</div>
-    <div class="name" id="sender">Anónimo</div>
+<!-- LOGIN -->
+<div id="login-page" class="login-wrap">
+  <div class="login-logo">AzWink</div>
+  <div class="login-card">
+    <div class="login-title">Bienvenido</div>
+    <div class="login-sub">Iniciá sesión para obtener tu link personal y recibir audios de quien quieras.</div>
+    <button class="btn btn-google" onclick="loginGoogle()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+      Continuar con Google
+    </button>
   </div>
-  <div class="waveform" id="waveform"></div>
 </div>
 
-<button id="unlock-btn" onclick="unlock()" title="Activar audio"></button>
+<!-- SLUG SETUP -->
+<div id="slug-page" class="login-wrap" style="display:none">
+  <div class="login-logo">AzWink</div>
+  <div class="login-card">
+    <div class="login-title">Elegí tu usuario</div>
+    <div class="login-sub">Este va a ser tu link personal para recibir audios. Solo letras, números y guiones.</div>
+    <div class="input-group">
+      <label class="input-label">Usuario</label>
+      <input type="text" id="slug-input" placeholder="ej: lacobraaa" oninput="slugCheck()" autocomplete="off" maxlength="30">
+      <div class="slug-preview">Tu link: <span id="slug-preview-text">…</span></div>
+    </div>
+    <div id="slug-msg" style="font-size:.75rem;color:var(--dim);margin-bottom:14px;min-height:18px"></div>
+    <button class="btn btn-primary" id="slug-btn" onclick="saveSlug()" disabled>Guardar y continuar</button>
+  </div>
+</div>
+
+<!-- APP (logged in) -->
+<div id="app-wrap" style="display:none;width:100%">
+  <nav>
+    <div class="logo">AzWink</div>
+    <div class="nav-right">
+      <div id="nav-avatar"></div>
+      <button class="btn btn-ghost" style="padding:6px 14px;font-size:.72rem" onclick="logout()">Salir</button>
+    </div>
+  </nav>
+  <main>
+    <div class="ph">
+      <div class="ph-label">Mi perfil</div>
+      <h1 class="ph-title">Tu link <span>personal.</span></h1>
+    </div>
+    <div class="card">
+      <div class="card-label">Overlay para OBS</div>
+      <p style="font-size:.78rem;color:var(--dim);margin-bottom:12px;line-height:1.6">Agregá esta URL como fuente <strong style="color:var(--text)">Navegador</strong> en OBS. El audio se reproduce automáticamente cuando apretás "Enviar al overlay".</p>
+      <div class="link-box">
+        <span id="obs-link-text">—</span>
+        <button class="copy-btn" id="copy-obs-btn" onclick="copyObs()">Copiar</button>
+      </div>
+      <p style="font-size:.7rem;color:var(--dim);margin-top:10px">En OBS: <strong style="color:var(--text)">Fuentes → + → Navegador</strong> → pegá la URL → Ancho: 800 / Alto: 200</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Compartí este link para recibir audios</div>
+      <div class="link-box">
+        <span id="my-link-text">—</span>
+      <p style="font-size:.72rem;color:var(--dim);margin-top:10px">Cualquiera que entre a este link puede grabarte un audio. Vos lo recibís acá abajo.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Audios recibidos</div></div>
+      <div class="stat-box"><div class="stat-num" id="stat-new">0</div><div class="stat-label">Sin escuchar</div></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="card-label" style="margin-bottom:0">Bandeja de audios</div>
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:.7rem" onclick="loadInbox()">↻ Refrescar</button>
+      </div>
+      <div class="sub-list" id="inbox-list">
+        <div class="empty-state">Aún no recibiste audios.<br>Compartí tu link para empezar.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- RECORD PAGE (público, sin login) -->
+<div id="record-page" style="display:none;width:100%">
+  <nav><div class="logo">AzWink</div></nav>
+  <main>
+    <div class="ph">
+      <div class="ph-label">Grabando para</div>
+      <h1 class="ph-title" id="record-for-name">@usuario</h1>
+    </div>
+    <div class="card">
+      <div class="card-label">Tu grabación</div>
+      <div class="mic-area">
+        <div id="status-badge" class="status-badge idle">
+          <div class="status-dot"></div>
+          <span id="status-text">Listo para grabar</span>
+        </div>
+        <div class="rec-timer" id="rec-timer">00:00</div>
+        <div class="waveform-wrap" id="waveform"></div>
+        <div class="mic-btn-wrap">
+          <div class="mic-ring" id="mic-ring"></div>
+          <button class="mic-btn" id="mic-btn" onclick="toggleRecord()">
+            <svg id="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+          </button>
+        </div>
+        <p style="font-size:.73rem;color:var(--dim);text-align:center" id="mic-hint">Presioná el micrófono para empezar</p>
+      </div>
+    </div>
+    <div class="card" id="playback-section" style="display:none">
+      <div class="card-label">Escuchar y enviar</div>
+      <audio id="audio-playback" controls></audio>
+      <div class="input-group">
+        <label class="input-label">Tu nombre (opcional)</label>
+        <input type="text" id="sender-name" placeholder="¿Quién sos?" autocomplete="off">
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="resetRecording()" style="flex:1">Grabar de nuevo</button>
+        <button class="btn btn-primary" id="send-btn" onclick="sendAudio()" style="flex:2">Enviar audio</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://vgnvhwiaqlcatnzvjhop.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5Y4D-pQL1z_cPmgAo1yiJA_zTHPbIc8';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const BUCKET = 'grabaciones';
+const BASE_URL = 'https://gastonledesma328-dot.github.io/AzWink';
 
-// ── BARS ──
-const wf = document.getElementById('waveform');
-const bars = [];
-for (let i = 0; i < 12; i++) {
-  const b = document.createElement('div');
-  b.className = 'bar';
-  wf.appendChild(b);
-  bars.push(b);
-}
-
-let raf;
-function animBars() {
-  cancelAnimationFrame(raf);
-  let t = 0;
-  (function loop() {
-    raf = requestAnimationFrame(loop);
-    t += 0.09;
-    bars.forEach((b,i) => {
-      const v = Math.abs(Math.sin(t + i*0.45)) * 0.65 + Math.random()*0.35;
-      b.style.height = (4 + v*32) + 'px';
-    });
-  })();
-}
-function stopBars() {
-  cancelAnimationFrame(raf);
-  bars.forEach(b => b.style.height = '4px');
-}
-
-// ── AUDIO UNLOCK ──
-async function unlock() {
-  try {
-    const ctx = new (window.AudioContext||window.webkitAudioContext)();
-    await ctx.resume();
-    const b = ctx.createBuffer(1,1,22050);
-    const s = ctx.createBufferSource();
-    s.buffer=b; s.connect(ctx.destination); s.start(0);
-    document.getElementById('unlock-btn').style.display='none';
-  } catch(e){}
-}
-// Try auto-unlock (works in OBS)
+let sb;
 try {
-  const ctx = new (window.AudioContext||window.webkitAudioContext)();
-  ctx.resume();
-} catch(e){}
-
-// ── STATE ──
-let busy = false;
-let t1, t2, audio;
-
-function release() {
-  console.log('release() called, busy was:', busy);
-  clearTimeout(t1);
-  clearTimeout(t2);
-  if (audio) { try{audio.pause();audio.src='';}catch(e){} audio=null; }
-  stopBars();
-  const card = document.getElementById('card');
-  card.classList.add('hiding');
-  setTimeout(() => {
-    card.classList.remove('visible','hiding');
-    busy = false;
-    console.log('busy reset to false');
-  }, 420);
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      storageKey: 'AzWink-auth',
+      storage: window.localStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  });
+} catch(e) {
+  console.error('Supabase init error:', e);
+  document.body.innerHTML = '<div style="color:#fff;padding:40px;font-family:monospace">Error: ' + e.message + '</div>';
 }
 
-function play(item) {
-  busy = true;
+let currentUser = null, currentProfile = null;
+let recording = false, mediaRecorder = null, audioChunks = [], audioBlob = null;
+let recordTimer = null, elapsed = 0, animFrame = null, analyser = null, audioCtx = null;
+let bars = [], publicRecipientId = null;
 
-  document.getElementById('sender').textContent = item.sender_name || 'Anónimo';
-  document.getElementById('avatar').textContent = (item.sender_name||'?')[0].toUpperCase();
+// ── ROUTER ──
+async function init() {
+  // GitHub Pages usa ?u=slug en vez de /u/slug
+  const params = new URLSearchParams(window.location.search);
+  const slug = params.get('u');
 
-  const card = document.getElementById('card');
-  card.classList.remove('hiding');
-  card.classList.add('visible');
-  animBars();
+  if (slug) {
+    await showRecordPage(slug);
+    return;
+  }
 
-  // Safety: always release after 90s
-  t1 = setTimeout(release, 90000);
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    currentUser = session.user;
+    await loadProfile();
+  } else {
+    showPage('login-page');
+  }
 
-  audio = new Audio(item.audio_url);
-  audio.volume = 1;
-
-  audio.onended = () => {
-    console.log('audio ended, releasing...');
-    clearTimeout(t1);
-    stopBars();
-    t2 = setTimeout(release, 2000);
-  };
-
-  audio.onerror = (e) => {
-    console.log('audio error:', e);
-    clearTimeout(t1);
-    stopBars();
-    t2 = setTimeout(release, 2000);
-  };
-
-  audio.play().catch((e) => {
-    const dur = (item.duration && item.duration > 0) ? item.duration * 1000 : 15000;
-    console.log('autoplay blocked:', e.message, '| will release in', dur, 'ms');
-    clearTimeout(t1);
-    animBars();
-    t2 = setTimeout(release, dur);
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session && !currentUser) {
+      currentUser = session.user;
+      await loadProfile();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null; currentProfile = null;
+      showPage('login-page');
+    }
   });
 }
 
-// ── POLLING ──
-const seen = new Set();
-let startTime;
-
-async function poll(recipientId) {
-  if (busy) return;
-  const { data } = await sb
-    .from('overlay_queue')
-    .select('*')
-    .eq('recipient_id', recipientId)
-    .gte('created_at', startTime)
-    .order('created_at', { ascending: true })
-    .limit(1);
-
-  if (!data?.length) return;
-  const item = data[0];
-  if (seen.has(item.id)) return;
-  seen.add(item.id);
-
-  const { error } = await sb.from('overlay_queue').delete().eq('id', item.id);
-  if (error) { seen.delete(item.id); return; }
-
-  play(item);
+// ── AUTH ──
+async function loginGoogle() {
+  await sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: BASE_URL + '/index.html' } });
+}
+async function logout() {
+  await sb.auth.signOut();
+  currentUser = null; currentProfile = null;
+  showPage('login-page');
 }
 
-// ── INIT ──
-async function init() {
-  const slug = new URLSearchParams(window.location.search).get('u');
+// ── PROFILE ──
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (data?.slug) { currentProfile = data; showApp(); }
+  else showPage('slug-page');
+}
+
+function slugCheck() {
+  const val = document.getElementById('slug-input').value.toLowerCase().replace(/[^a-z0-9-]/g,'');
+  document.getElementById('slug-input').value = val;
+  document.getElementById('slug-preview-text').textContent = `${BASE_URL}/u/${val||'...'}`;
+  const ok = val.length >= 3;
+  document.getElementById('slug-msg').textContent = ok ? '' : 'Mínimo 3 caracteres';
+  document.getElementById('slug-btn').disabled = !ok;
+}
+
+async function saveSlug() {
+  const slug = document.getElementById('slug-input').value.trim();
   if (!slug) return;
-
-  const { data: profile } = await sb.from('profiles').select('id').eq('slug', slug).single();
-  if (!profile) return;
-
-  // Clear stale queue
-  await sb.from('overlay_queue').delete().eq('recipient_id', profile.id);
-  startTime = new Date().toISOString();
-
-  setInterval(() => poll(profile.id), 2000);
+  const btn = document.getElementById('slug-btn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const { data: ex } = await sb.from('profiles').select('id').eq('slug', slug).single();
+  if (ex) {
+    document.getElementById('slug-msg').textContent = 'Ese usuario ya existe, elegí otro.';
+    document.getElementById('slug-msg').style.color = 'var(--red)';
+    btn.disabled = false; btn.textContent = 'Guardar y continuar'; return;
+  }
+  const name = currentUser.user_metadata?.full_name || currentUser.email;
+  const avatar = currentUser.user_metadata?.avatar_url || '';
+  const { error } = await sb.from('profiles').upsert({ id: currentUser.id, slug, display_name: name, avatar_url: avatar });
+  if (!error) { currentProfile = { id: currentUser.id, slug, display_name: name, avatar_url: avatar }; showApp(); }
+  else { showToast('Error al guardar','error'); btn.disabled=false; btn.textContent='Guardar y continuar'; }
 }
 
-init();
+// ── APP ──
+function showApp() {
+  showPage('app-wrap');
+  const nav = document.getElementById('nav-avatar');
+  nav.innerHTML = currentProfile.avatar_url
+    ? `<img class="avatar" src="${currentProfile.avatar_url}" alt="">`
+    : `<div class="avatar-placeholder">${(currentProfile.display_name||'?')[0].toUpperCase()}</div>`;
+  document.getElementById('my-link-text').textContent = `${BASE_URL}/index.html?u=${currentProfile.slug}`;
+  document.getElementById('obs-link-text').textContent = `${BASE_URL}/overlay.html?u=${currentProfile.slug}`;
+  loadInbox();
+}
+
+async function loadInbox() {
+  const { data } = await sb.from('submissions').select('*').eq('recipient_id', currentUser.id).order('created_at',{ascending:false});
+  const list = data || [];
+  document.getElementById('stat-total').textContent = list.length;
+  document.getElementById('stat-new').textContent = list.filter(s=>!s.listened).length;
+  renderInbox(list);
+}
+
+function renderInbox(list) {
+  const el = document.getElementById('inbox-list');
+  if (!list.length) { el.innerHTML='<div class="empty-state">Aún no recibiste audios.<br>Compartí tu link para empezar.</div>'; return; }
+  el.innerHTML='';
+  list.forEach(sub => {
+    const item = document.createElement('div');
+    item.className='sub-item';
+    const init=(sub.sender_name||'?')[0].toUpperCase();
+    const date=new Date(sub.created_at).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const dur=sub.duration?`${sub.duration}s`:'—';
+    const dot=!sub.listened?'<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-left:6px;vertical-align:middle"></span>':'';
+    item.innerHTML=`
+      <div class="sub-avatar">${init}</div>
+      <div class="sub-info">
+        <div class="sub-name">${sub.sender_name||'Anónimo'}${dot}</div>
+        <div class="sub-time">${date} · ${dur}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+        <audio src="${sub.audio_url}" controls onplay="markListened('${sub.id}')" style="width:180px;height:30px"></audio>
+        <button class="btn btn-ghost" style="padding:5px 12px;font-size:.68rem;border-color:rgba(232,255,77,.3);color:#e8ff4d" onclick="sendToOverlay('${sub.id}','${sub.audio_url}','${(sub.sender_name||'Anónimo').replace(/'/g,"\\'")}',${sub.duration||0})">
+          ▶ Enviar al overlay
+        </button>
+      </div>`;
+    el.appendChild(item);
+  });
+}
+
+async function sendToOverlay(submissionId, audioUrl, senderName, duration) {
+  const { error } = await sb.from('overlay_queue').insert({
+    recipient_id: currentUser.id,
+    submission_id: submissionId,
+    audio_url: audioUrl,
+    sender_name: senderName,
+    duration: duration || null,
+  });
+  if (error) { showToast('Error al enviar al overlay', 'error'); return; }
+  showToast('▶ Enviado al overlay', 'success');
+}
+
+async function markListened(id) {
+  await sb.from('submissions').update({listened:true}).eq('id',id);
+  const {data} = await sb.from('submissions').select('id').eq('recipient_id',currentUser.id).eq('listened',false);
+  document.getElementById('stat-new').textContent=(data||[]).length;
+}
+
+function copyObs() {
+  navigator.clipboard.writeText(document.getElementById('obs-link-text').textContent).then(() => {
+    const btn = document.getElementById('copy-obs-btn');
+    btn.textContent = '✓ Copiado'; btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyLink() {
+  navigator.clipboard.writeText(document.getElementById('my-link-text').textContent).then(()=>{
+    const btn=document.getElementById('copy-link-btn');
+    btn.textContent='✓ Copiado'; btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied');},2000);
+  });
+}
+
+// ── RECORD PAGE ──
+async function showRecordPage(slug) {
+  showPage('record-page'); initWaveform();
+  const {data:profile} = await sb.from('profiles').select('*').eq('slug',slug).single();
+  if (!profile) { document.getElementById('record-for-name').textContent='Usuario no encontrado'; document.getElementById('mic-btn').disabled=true; return; }
+  publicRecipientId = profile.id;
+  document.getElementById('record-for-name').textContent = '@'+slug;
+}
+
+// ── RECORDING ──
+async function toggleRecord() { recording ? stopRecording() : await startRecording(); }
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser(); analyser.fftSize=64;
+    src.connect(analyser);
+    mediaRecorder = new MediaRecorder(stream); audioChunks=[];
+    mediaRecorder.ondataavailable = e=>{ if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = ()=>{
+      audioBlob = new Blob(audioChunks,{type:'audio/webm'});
+      document.getElementById('audio-playback').src=URL.createObjectURL(audioBlob);
+      document.getElementById('playback-section').style.display='block';
+      stream.getTracks().forEach(t=>t.stop());
+    };
+    mediaRecorder.start(); recording=true; elapsed=0;
+    document.getElementById('mic-btn').classList.add('recording');
+    document.getElementById('mic-ring').classList.add('recording');
+    document.getElementById('waveform').classList.add('visible','recording');
+    document.getElementById('rec-timer').classList.add('visible');
+    document.getElementById('mic-hint').style.opacity='0';
+    document.getElementById('playback-section').style.display='none';
+    setStatus('recording');
+    document.getElementById('mic-icon').innerHTML='<rect x="6" y="6" width="12" height="12" rx="2"/>';
+    recordTimer=setInterval(()=>{
+      elapsed++;
+      document.getElementById('rec-timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+      if(elapsed>=60) stopRecording();
+    },1000);
+    const buf=new Uint8Array(analyser.frequencyBinCount);
+    (function draw(){animFrame=requestAnimationFrame(draw);analyser.getByteFrequencyData(buf);bars.forEach((b,i)=>b.style.height=(4+(buf[i]||0)/255*46)+'px');})();
+  } catch(e){ showToast('No se pudo acceder al micrófono','error'); }
+}
+
+function stopRecording() {
+  if(!mediaRecorder) return;
+  recording=false; clearInterval(recordTimer); cancelAnimationFrame(animFrame);
+  mediaRecorder.stop();
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('mic-ring').classList.remove('recording');
+  document.getElementById('waveform').classList.remove('recording','visible');
+  document.getElementById('rec-timer').classList.remove('visible');
+  document.getElementById('mic-hint').style.opacity='1';
+  bars.forEach(b=>b.style.height='4px'); setStatus('done');
+  document.getElementById('mic-icon').innerHTML=`<path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>`;
+  if(audioCtx) audioCtx.close();
+}
+
+function resetRecording() {
+  document.getElementById('playback-section').style.display='none';
+  document.getElementById('sender-name').value='';
+  audioBlob=null; setStatus('idle'); document.getElementById('mic-hint').style.opacity='1';
+}
+
+function setStatus(mode) {
+  document.getElementById('status-badge').className='status-badge '+mode;
+  document.getElementById('status-text').textContent={idle:'Listo para grabar',recording:'Grabando...',done:'Grabación lista',sending:'Enviando...'}[mode]||'';
+}
+
+async function sendAudio() {
+  if(!audioBlob||!publicRecipientId) return;
+  const senderName=(document.getElementById('sender-name').value.trim())||'Anónimo';
+  setStatus('sending'); document.getElementById('send-btn').disabled=true;
+  try {
+    const filename=`${publicRecipientId}/${Date.now()}.webm`;
+    const {error:upErr}=await sb.storage.from(BUCKET).upload(filename,audioBlob,{contentType:'audio/webm'});
+    if(upErr) throw upErr;
+    const {data:urlData}=sb.storage.from(BUCKET).getPublicUrl(filename);
+    const {error:dbErr}=await sb.from('submissions').insert({recipient_id:publicRecipientId,sender_name:senderName,audio_url:urlData.publicUrl,duration:elapsed,listened:false});
+    if(dbErr) throw dbErr;
+    showToast('✓ Audio enviado','success');
+    resetRecording(); setStatus('idle');
+  } catch(e){ showToast('Error: '+(e.message||''),'error'); setStatus('done'); }
+  finally{ document.getElementById('send-btn').disabled=false; }
+}
+
+// ── WAVEFORM ──
+function initWaveform() {
+  const wf=document.getElementById('waveform'); wf.innerHTML=''; bars=[];
+  for(let i=0;i<32;i++){const b=document.createElement('div');b.className='wave-bar';wf.appendChild(b);bars.push(b);}
+}
+
+// ── UTILS ──
+function showPage(id) {
+  ['login-page','slug-page','app-wrap','record-page'].forEach(p=>{
+    const el=document.getElementById(p);
+    if(el) el.style.display=p===id?(p==='app-wrap'||p==='record-page'?'block':'flex'):'none';
+  });
+}
+let toastTimer;
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type;
+  void t.offsetWidth;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+init().catch(e => { console.error('Init error:', e); showPage('login-page'); });
 </script>
 </body>
 </html>
