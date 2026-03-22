@@ -4,219 +4,78 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AzWink OBS Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
+* { margin:0; padding:0; box-sizing:border-box; }
 body {
   background: transparent;
-  font-family: 'Syne', sans-serif;
-  width: 100vw;
-  height: 100vh;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  padding: 32px;
-  overflow: hidden;
+  width: 100vw; height: 100vh;
+  display: flex; align-items: flex-end; justify-content: flex-start;
+  padding: 32px; overflow: hidden;
+  font-family: 'DM Mono', monospace;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap');
-
-/* ── CARD ── */
-.overlay-card {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  background: rgba(10, 10, 15, 0.85);
+.card {
+  display: flex; align-items: center; gap: 18px;
+  background: rgba(10,10,15,0.88);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(232, 255, 77, 0.3);
-  border-radius: 20px;
-  padding: 16px 24px;
-  min-width: 320px;
-  max-width: 520px;
-
-  /* Hidden by default */
-  opacity: 0;
-  transform: translateY(20px);
+  border: 1px solid rgba(232,255,77,0.35);
+  border-radius: 20px; padding: 16px 24px;
+  min-width: 300px; max-width: 520px;
+  opacity: 0; transform: translateY(20px);
   transition: opacity 0.4s cubic-bezier(.22,1,.36,1), transform 0.4s cubic-bezier(.22,1,.36,1);
   pointer-events: none;
 }
+.card.visible  { opacity:1; transform:translateY(0); }
+.card.hiding   { opacity:0; transform:translateY(20px); }
 
-.overlay-card.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.overlay-card.hiding {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-/* ── AVATAR ── */
 .avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e8ff4d, #4dffb4);
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: 1.2rem;
-  color: #0a0a0f;
-  flex-shrink: 0;
-  justify-content: center;
+  width:48px; height:48px; border-radius:50%;
+  background: linear-gradient(135deg,#e8ff4d,#4dffb4);
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Syne',sans-serif; font-weight:800; font-size:1.2rem;
+  color:#0a0a0f; flex-shrink:0;
 }
 
-/* ── TEXT ── */
-.text-wrap { flex: 1; min-width: 0; }
+.info { flex:1; min-width:0; }
+.lbl { font-size:.62rem; letter-spacing:.12em; text-transform:uppercase; color:#7a7a9a; margin-bottom:2px; display:flex; align-items:center; gap:6px; }
+.dot { width:6px; height:6px; border-radius:50%; background:#e8ff4d; animation:blink 1s infinite; }
+.name { font-family:'Syne',sans-serif; font-weight:800; font-size:1.1rem; color:#f0f0ff; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.sender-label {
-  font-family: 'DM Mono', monospace;
-  font-size: 0.65rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #7a7a9a;
-  margin-bottom: 2px;
+.waveform { display:flex; align-items:center; gap:3px; height:40px; flex-shrink:0; }
+.bar { width:3px; border-radius:10px; background:#e8ff4d; height:4px; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* unlock btn */
+#unlock-btn {
+  position:fixed; bottom:6px; right:6px;
+  width:16px; height:16px; border-radius:50%;
+  background:rgba(232,255,77,.2); border:1px solid rgba(232,255,77,.4);
+  cursor:pointer; padding:0; z-index:99;
 }
-
-.sender-name {
-  font-family: 'Syne', sans-serif;
-  font-weight: 800;
-  font-size: 1.1rem;
-  color: #f0f0ff;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ── WAVEFORM ── */
-.waveform {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.bar {
-  width: 3px;
-  border-radius: 10px;
-  background: #e8ff4d;
-  height: 4px;
-  transition: height 0.08s ease;
-}
-
-.bar.playing {
-  animation: wave-idle 1.2s ease-in-out infinite;
-}
-
-.bar:nth-child(2) { animation-delay: 0.1s; }
-.bar:nth-child(3) { animation-delay: 0.2s; }
-.bar:nth-child(4) { animation-delay: 0.3s; }
-.bar:nth-child(5) { animation-delay: 0.15s; }
-.bar:nth-child(6) { animation-delay: 0.25s; }
-.bar:nth-child(7) { animation-delay: 0.05s; }
-.bar:nth-child(8) { animation-delay: 0.35s; }
-.bar:nth-child(9) { animation-delay: 0.18s; }
-.bar:nth-child(10) { animation-delay: 0.28s; }
-.bar:nth-child(11) { animation-delay: 0.08s; }
-.bar:nth-child(12) { animation-delay: 0.22s; }
-
-@keyframes wave-idle {
-  0%, 100% { height: 4px; }
-  50% { height: 28px; }
-}
-
-/* ── MIC ICON (idle state) ── */
-.mic-icon {
-  color: #e8ff4d;
-  flex-shrink: 0;
-}
-
-/* ── INCOMING LABEL ── */
-.incoming-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.incoming-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #e8ff4d;
-  animation: blink 1s infinite;
-  flex-shrink: 0;
-}
-
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-/* ── SETUP PAGE (shown when no slug in URL) ── */
-.setup {
-  background: rgba(10,10,15,0.95);
-  border: 1px solid rgba(232,255,77,0.2);
-  border-radius: 16px;
-  padding: 28px;
-  max-width: 480px;
-  color: #f0f0ff;
-  font-family: 'DM Mono', monospace;
-}
-.setup h2 { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; color: #e8ff4d; margin-bottom: 12px; }
-.setup p { font-size: 0.8rem; color: #7a7a9a; line-height: 1.6; margin-bottom: 16px; }
-.setup .url { background: rgba(232,255,77,0.08); border: 1px solid rgba(232,255,77,0.2); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #e8ff4d; word-break: break-all; }
 </style>
 </head>
 <body>
 
-<div class="overlay-card" id="card">
+<div class="card" id="card">
   <div class="avatar" id="avatar">?</div>
-  <div class="text-wrap">
-    <div class="incoming-wrap">
-      <div class="incoming-dot"></div>
-      <div class="sender-label">audio de</div>
-    </div>
-    <div class="sender-name" id="sender-name">Anónimo</div>
+  <div class="info">
+    <div class="lbl"><div class="dot"></div>audio de</div>
+    <div class="name" id="sender">Anónimo</div>
   </div>
   <div class="waveform" id="waveform"></div>
 </div>
 
-<!-- Tiny unlock button — click once in browser, invisible in stream -->
-<button id="unlock-btn" onclick="unlockAudio()" style="
-  position:fixed;bottom:4px;right:4px;
-  width:18px;height:18px;border-radius:50%;
-  background:rgba(232,255,77,0.15);
-  border:1px solid rgba(232,255,77,0.3);
-  cursor:pointer;padding:0;
-  transition:all .2s;z-index:999;
-" title="Activar audio"></button>
-
-<div class="setup" id="setup" style="display:none">
-  <h2>AzWink OBS Overlay</h2>
-  <p>Agregá tu usuario en la URL para conectar el overlay a tu cuenta:</p>
-  <div class="url" id="setup-url"></div>
-  <p style="margin-top:12px">En OBS: <strong>Fuente → Navegador</strong> → pegá esa URL.</p>
-</div>
-
-<button id="reset-btn" onclick="forceReset()" style="
-  position:fixed;top:12px;right:12px;
-  background:rgba(10,10,15,.7);border:1px solid rgba(255,255,255,.15);
-  color:rgba(255,255,255,.4);border-radius:8px;padding:5px 10px;
-  font-family:monospace;font-size:11px;cursor:pointer;
-  transition:all .2s;
-" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,.4)'">
-  ↺ reset
-</button>
+<button id="unlock-btn" onclick="unlock()" title="Activar audio"></button>
 
 <script>
 const SUPABASE_URL = 'https://vgnvhwiaqlcatnzvjhop.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_5Y4D-pQL1z_cPmgAo1yiJA_zTHPbIc8';
-
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// ── WAVEFORM BARS ──
+// ── BARS ──
 const wf = document.getElementById('waveform');
 const bars = [];
 for (let i = 0; i < 12; i++) {
@@ -226,211 +85,133 @@ for (let i = 0; i < 12; i++) {
   bars.push(b);
 }
 
-let audioCtx = null;
-
-async function unlockAudio() {
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
-    const buf = audioCtx.createBuffer(1, 1, 22050);
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    src.connect(audioCtx.destination);
-    src.start(0);
-    document.getElementById('unlock-btn').style.display = 'none';
-  } catch(e) {}
-}
-
-// Try auto-init (works in OBS with "Control audio via OBS" enabled)
-function initAudio() {
-  try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch(e) {}
-}
-initAudio();
-
-// ── AUDIO ──
-let audioEl = null;
-let animFrame;
-
-function playAudio(url, onEnd, sub) {
-  if (audioEl) { audioEl.pause(); audioEl.src = ''; }
-
-  audioEl = new Audio();
-  audioEl.src = url;
-  audioEl.volume = 1;
-  audioEl.crossOrigin = 'anonymous';
-
-  audioEl.onended = () => { stopBars(); onEnd(); };
-  audioEl.onerror = () => { stopBars(); onEnd(); };
-
-  // Connect to AudioContext so OBS captures it
-  if (audioCtx) {
-    try {
-      const source = audioCtx.createMediaElementSource(audioEl);
-      source.connect(audioCtx.destination);
-
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 32;
-      source.connect(analyser);
-
-      const buf = new Uint8Array(analyser.frequencyBinCount);
-      cancelAnimationFrame(animFrame);
-      (function draw() {
-        animFrame = requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(buf);
-        bars.forEach((b, i) => {
-          const v = (buf[i] || 0) / 255;
-          b.style.height = (4 + v * 34) + 'px';
-        });
-      })();
-    } catch(e) {
-      console.warn('Analyser error:', e);
-      animateBarsManual();
-    }
-  } else {
-    animateBarsManual();
-  }
-
-  audioEl.play().catch(e => {
-    console.error('Play error:', e);
-    animateBarsManual();
-    // Use duration from sub if available, else 15s
-    const dur = (sub && sub.duration ? sub.duration : 15) * 1000;
-    setTimeout(() => { stopBars(); onEnd(); }, dur);
-  });
-}
-
-function animateBarsManual() {
-  cancelAnimationFrame(animFrame);
+let raf;
+function animBars() {
+  cancelAnimationFrame(raf);
   let t = 0;
-  (function draw() {
-    animFrame = requestAnimationFrame(draw);
-    t += 0.08;
-    bars.forEach((b, i) => {
-      const v = Math.abs(Math.sin(t + i * 0.4)) * 0.7 + Math.random() * 0.3;
-      b.style.height = (4 + v * 34) + 'px';
+  (function loop() {
+    raf = requestAnimationFrame(loop);
+    t += 0.09;
+    bars.forEach((b,i) => {
+      const v = Math.abs(Math.sin(t + i*0.45)) * 0.65 + Math.random()*0.35;
+      b.style.height = (4 + v*32) + 'px';
     });
   })();
 }
-
 function stopBars() {
-  cancelAnimationFrame(animFrame);
-  bars.forEach(b => { b.style.height = '4px'; });
+  cancelAnimationFrame(raf);
+  bars.forEach(b => b.style.height = '4px');
 }
 
-function stopAudio() {
-  if (audioEl) { audioEl.pause(); audioEl.src = ''; audioEl = null; }
+// ── AUDIO UNLOCK ──
+async function unlock() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    await ctx.resume();
+    const b = ctx.createBuffer(1,1,22050);
+    const s = ctx.createBufferSource();
+    s.buffer=b; s.connect(ctx.destination); s.start(0);
+    document.getElementById('unlock-btn').style.display='none';
+  } catch(e){}
+}
+// Try auto-unlock (works in OBS)
+try {
+  const ctx = new (window.AudioContext||window.webkitAudioContext)();
+  ctx.resume();
+} catch(e){}
+
+// ── STATE ──
+let busy = false;
+let t1, t2, audio;
+
+function release() {
+  clearTimeout(t1);
+  clearTimeout(t2);
+  if (audio) { try{audio.pause();audio.src='';}catch(e){} audio=null; }
   stopBars();
+  const card = document.getElementById('card');
+  card.classList.add('hiding');
+  setTimeout(() => {
+    card.classList.remove('visible','hiding');
+    busy = false;
+  }, 420);
 }
 
-// ── SHOW / HIDE CARD ──
-let hideTimer;
+function play(item) {
+  busy = true;
 
-function showCard(sub) {
-  clearTimeout(hideTimer);
-
-  const name = sub.sender_name || 'Anónimo';
-  document.getElementById('sender-name').textContent = name;
-  document.getElementById('avatar').textContent = name[0].toUpperCase();
+  document.getElementById('sender').textContent = item.sender_name || 'Anónimo';
+  document.getElementById('avatar').textContent = (item.sender_name||'?')[0].toUpperCase();
 
   const card = document.getElementById('card');
   card.classList.remove('hiding');
   card.classList.add('visible');
+  animBars();
 
-  // Safety timer — always release after 90s no matter what
-  const safetyTimer = setTimeout(finish, 90000);
+  // Safety: always release after 90s
+  t1 = setTimeout(release, 90000);
 
-  function finish() {
-    clearTimeout(safetyTimer);
-    clearTimeout(hideTimer);
-    stopAudio();
-    hideCard();
-    // Always reset isPlaying after card hides
-    setTimeout(() => { isPlaying = false; }, 600);
-  }
+  audio = new Audio(item.audio_url);
+  audio.volume = 1;
 
-  playAudio(sub.audio_url, () => {
-    clearTimeout(safetyTimer);
-    stopAudio();
-    hideTimer = setTimeout(() => {
-      hideCard();
-      setTimeout(() => { isPlaying = false; }, 600);
-    }, 2000);
-  }, sub);
+  audio.onended = () => {
+    clearTimeout(t1);
+    stopBars();
+    t2 = setTimeout(release, 2000);
+  };
+
+  audio.onerror = () => {
+    clearTimeout(t1);
+    stopBars();
+    t2 = setTimeout(release, (item.duration||15)*1000 + 1000);
+  };
+
+  audio.play().catch(() => {
+    // Autoplay blocked — release after duration
+    clearTimeout(t1);
+    stopBars();
+    t2 = setTimeout(release, (item.duration||15)*1000);
+  });
 }
 
-function hideCard() {
-  const card = document.getElementById('card');
-  card.classList.add('hiding');
-  setTimeout(() => card.classList.remove('visible', 'hiding'), 400);
-}
-
-function forceReset() {
-  stopAudio();
-  hideCard();
-  isPlaying = false;
-  clearTimeout(hideTimer);
-}
 // ── POLLING ──
-let isPlaying = false;
-const processed = new Set();
-let startTime = null;
+const seen = new Set();
+let startTime;
 
-async function connectRealtime(recipientId) {
-  // Clear any leftover items in queue from before this session
-  await sb.from('overlay_queue').delete().eq('recipient_id', recipientId);
-  startTime = new Date().toISOString();
+async function poll(recipientId) {
+  if (busy) return;
+  const { data } = await sb
+    .from('overlay_queue')
+    .select('*')
+    .eq('recipient_id', recipientId)
+    .gte('created_at', startTime)
+    .order('created_at', { ascending: true })
+    .limit(1);
 
-  setInterval(async () => {
-    if (isPlaying) return;
+  if (!data?.length) return;
+  const item = data[0];
+  if (seen.has(item.id)) return;
+  seen.add(item.id);
 
-    const { data } = await sb
-      .from('overlay_queue')
-      .select('*')
-      .eq('recipient_id', recipientId)
-      .gte('created_at', startTime)
-      .order('created_at', { ascending: true })
-      .limit(1);
+  const { error } = await sb.from('overlay_queue').delete().eq('id', item.id);
+  if (error) { seen.delete(item.id); return; }
 
-    if (!data || !data.length) return;
-    const item = data[0];
-
-    if (processed.has(item.id)) return;
-    processed.add(item.id);
-
-    const { error } = await sb.from('overlay_queue').delete().eq('id', item.id);
-    if (error) { processed.delete(item.id); return; }
-
-    isPlaying = true;
-    showCard(item);
-  }, 2000);
+  play(item);
 }
 
 // ── INIT ──
 async function init() {
-  const slug = new URLSearchParams(window.location.search).get('u')
-    || window.location.pathname.match(/\/overlay\/([^/]+)/)?.[1];
+  const slug = new URLSearchParams(window.location.search).get('u');
+  if (!slug) return;
 
-  if (!slug) {
-    document.getElementById('card').style.display = 'none';
-    document.getElementById('setup').style.display = 'block';
-    document.getElementById('setup-url').textContent =
-      'https://gastonledesma328-dot.github.io/AzWink/overlay.html?u=TUUSUARIO';
-    return;
-  }
+  const { data: profile } = await sb.from('profiles').select('id').eq('slug', slug).single();
+  if (!profile) return;
 
-  // Look up profile by slug
-  const { data: profile } = await sb.from('profiles').select('id,slug').eq('slug', slug).single();
-  if (!profile) {
-    document.getElementById('card').style.display = 'none';
-    document.getElementById('setup').style.display = 'block';
-    document.getElementById('setup-url').textContent = 'Usuario "' + slug + '" no encontrado.';
-    return;
-  }
+  // Clear stale queue
+  await sb.from('overlay_queue').delete().eq('recipient_id', profile.id);
+  startTime = new Date().toISOString();
 
-  await connectRealtime(profile.id);
+  setInterval(() => poll(profile.id), 2000);
 }
 
 init();
