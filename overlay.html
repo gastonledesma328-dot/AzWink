@@ -216,54 +216,53 @@ for (let i = 0; i < 12; i++) {
   bars.push(b);
 }
 
-// ── AUDIO via Web Audio API (OBS compatible) ──
-let audioCtx, analyser, animFrame, currentSource;
+// ── AUDIO ──
+let audioEl = null;
+let animFrame;
+let bars_anim_timer = null;
 
-async function playAudio(url, onEnd) {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') await audioCtx.resume();
+function playAudio(url, onEnd) {
+  if (audioEl) { audioEl.pause(); audioEl.src = ''; }
 
-    const res = await fetch(url);
-    const arrayBuffer = await res.arrayBuffer();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  audioEl = new Audio();
+  audioEl.crossOrigin = 'anonymous';
+  audioEl.src = url;
+  audioEl.volume = 1;
 
-    if (currentSource) { try { currentSource.stop(); } catch(e){} }
+  audioEl.onended = () => { stopBars(); onEnd(); };
+  audioEl.onerror = (e) => { console.error('Audio error', e); stopBars(); onEnd(); };
 
-    analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 32;
+  audioEl.play().catch(e => {
+    console.warn('Autoplay blocked, using fallback animation:', e);
+    // Animate bars for estimated duration anyway
+    animateBars();
+    setTimeout(() => { stopBars(); onEnd(); }, 15000);
+  });
 
-    currentSource = audioCtx.createBufferSource();
-    currentSource.buffer = audioBuffer;
-    currentSource.connect(analyser);
-    analyser.connect(audioCtx.destination);
-    currentSource.onended = onEnd;
-    currentSource.start(0);
+  audioEl.onplay = () => animateBars();
+}
 
-    // Animate bars
-    const buf = new Uint8Array(analyser.frequencyBinCount);
-    cancelAnimationFrame(animFrame);
-    (function draw() {
-      animFrame = requestAnimationFrame(draw);
-      analyser.getByteFrequencyData(buf);
-      bars.forEach((b, i) => {
-        const v = (buf[i] || 0) / 255;
-        b.style.height = (4 + v * 34) + 'px';
-        b.style.opacity = String(0.5 + v * 0.5);
-      });
-    })();
+function animateBars() {
+  cancelAnimationFrame(animFrame);
+  let t = 0;
+  (function draw() {
+    animFrame = requestAnimationFrame(draw);
+    t += 0.08;
+    bars.forEach((b, i) => {
+      const v = Math.abs(Math.sin(t + i * 0.4)) * 0.7 + Math.random() * 0.3;
+      b.style.height = (4 + v * 34) + 'px';
+    });
+  })();
+}
 
-    return true;
-  } catch(e) {
-    console.error('Audio error:', e);
-    return false;
-  }
+function stopBars() {
+  cancelAnimationFrame(animFrame);
+  bars.forEach(b => { b.style.height = '4px'; });
 }
 
 function stopAudio() {
-  cancelAnimationFrame(animFrame);
-  if (currentSource) { try { currentSource.stop(); } catch(e){} currentSource = null; }
-  bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '1'; });
+  if (audioEl) { audioEl.pause(); audioEl.src = ''; audioEl = null; }
+  stopBars();
 }
 
 // ── SHOW / HIDE CARD ──
@@ -280,7 +279,6 @@ function showCard(sub) {
   card.classList.remove('hiding');
   card.classList.add('visible');
 
-  // Safety timeout
   const safetyTimer = setTimeout(() => {
     stopAudio(); hideCard(); isPlaying = false;
   }, 90000);
@@ -294,13 +292,7 @@ function showCard(sub) {
     }, 2000);
   };
 
-  playAudio(sub.audio_url, finish).then(ok => {
-    if (!ok) {
-      // Fallback: animate bars for the duration
-      bars.forEach(b => b.classList.add('playing'));
-      setTimeout(finish, (sub.duration || 15) * 1000);
-    }
-  });
+  playAudio(sub.audio_url, finish);
 }
 
 function hideCard() {
@@ -315,7 +307,6 @@ function forceReset() {
   isPlaying = false;
   clearTimeout(hideTimer);
 }
-
 // ── POLLING ──
 let isPlaying = false;
 const processed = new Set();
@@ -356,7 +347,7 @@ async function init() {
     document.getElementById('card').style.display = 'none';
     document.getElementById('setup').style.display = 'block';
     document.getElementById('setup-url').textContent =
-      window.location.origin + '/overlay.html?u=TUUSUARIO';
+      'https://gastonledesma328-dot.github.io/AzWink/overlay.html?u=TUUSUARIO';
     return;
   }
 
