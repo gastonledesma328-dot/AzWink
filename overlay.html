@@ -125,17 +125,23 @@ let busy = false;
 let t1, t2, audio;
 
 function release() {
-  console.log('release() called, busy was:', busy);
+  if (!busy) { console.log('release() skipped, already free'); return; }
+  console.log('release() called');
+  busy = false; // reset immediately to prevent double-call issues
   clearTimeout(t1);
   clearTimeout(t2);
-  if (audio) { try{audio.pause();audio.src='';}catch(e){} audio=null; }
+  if (audio) {
+    audio.onended = null;
+    audio.onerror = null;
+    try{audio.pause();audio.src='';}catch(e){}
+    audio = null;
+  }
   stopBars();
   const card = document.getElementById('card');
   card.classList.add('hiding');
   setTimeout(() => {
     card.classList.remove('visible','hiding');
-    busy = false;
-    console.log('busy reset to false');
+    console.log('card hidden, ready for next');
   }, 420);
 }
 
