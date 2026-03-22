@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AzWink OBS Overlay</title>
+<title>Weezyx OBS Overlay</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
@@ -125,6 +125,7 @@ let busy = false;
 let t1, t2, audio;
 
 function release() {
+  console.log('release() called, busy was:', busy);
   clearTimeout(t1);
   clearTimeout(t2);
   if (audio) { try{audio.pause();audio.src='';}catch(e){} audio=null; }
@@ -134,6 +135,7 @@ function release() {
   setTimeout(() => {
     card.classList.remove('visible','hiding');
     busy = false;
+    console.log('busy reset to false');
   }, 420);
 }
 
@@ -155,22 +157,26 @@ function play(item) {
   audio.volume = 1;
 
   audio.onended = () => {
+    console.log('audio ended, releasing...');
     clearTimeout(t1);
     stopBars();
     t2 = setTimeout(release, 2000);
   };
 
-  audio.onerror = () => {
+  audio.onerror = (e) => {
+    console.log('audio error:', e);
     clearTimeout(t1);
     stopBars();
-    t2 = setTimeout(release, (item.duration||15)*1000 + 1000);
+    t2 = setTimeout(release, 3000);
   };
 
-  audio.play().catch(() => {
-    // Autoplay blocked — release after duration
+  audio.play().catch((e) => {
+    console.log('autoplay blocked:', e.message, '| duration:', item.duration);
+    // Autoplay blocked — animate for duration then release
+    const dur = item.duration ? item.duration * 1000 : 15000;
+    console.log('will release in', dur, 'ms');
     clearTimeout(t1);
-    stopBars();
-    t2 = setTimeout(release, (item.duration||15)*1000);
+    t2 = setTimeout(release, dur);
   });
 }
 
