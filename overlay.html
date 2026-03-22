@@ -183,6 +183,16 @@ body {
   <div class="waveform" id="waveform"></div>
 </div>
 
+<!-- Tiny unlock button — click once in browser, invisible in stream -->
+<button id="unlock-btn" onclick="unlockAudio()" style="
+  position:fixed;bottom:4px;right:4px;
+  width:18px;height:18px;border-radius:50%;
+  background:rgba(232,255,77,0.15);
+  border:1px solid rgba(232,255,77,0.3);
+  cursor:pointer;padding:0;
+  transition:all .2s;z-index:999;
+" title="Activar audio"></button>
+
 <div class="setup" id="setup" style="display:none">
   <h2>AzWink OBS Overlay</h2>
   <p>Agregá tu usuario en la URL para conectar el overlay a tu cuenta:</p>
@@ -218,7 +228,20 @@ for (let i = 0; i < 12; i++) {
 
 let audioCtx = null;
 
-// Try to init AudioContext automatically
+async function unlockAudio() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+    const buf = audioCtx.createBuffer(1, 1, 22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(0);
+    document.getElementById('unlock-btn').style.display = 'none';
+  } catch(e) {}
+}
+
+// Try auto-init (works in OBS with "Control audio via OBS" enabled)
 function initAudio() {
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
